@@ -338,6 +338,8 @@
                     if (e.lengthComputable) {
                         const percent = (e.loaded / e.total) * 100;
                         submitBtn.textContent = 'Загрузка файла… ' + percent.toFixed(0) + '%';
+                        status.className = 'status processing';
+                        status.style.display = 'block';
                         setTranscribeProgress(percent);
                         transcribeProgressText.textContent = 'Загрузка: ' + formatBytes(e.loaded) + ' / ' + formatBytes(e.total) + ' (' + percent.toFixed(0) + '%)';
                     }
@@ -368,31 +370,43 @@
                 resetProgress();
 
                 status.className = 'status processing';
+                status.style.display = 'block';
                 statusContent.innerHTML = '<span class="spinner"></span> Транскрибация…';
 
                 const poll = setInterval(async () => {
-                    const s = await fetch('/status/' + taskId).then(r => r.json());
-                    if (s.status === 'processing' || s.status === 'pending') {
-                        if (s.progress !== undefined) {
-                            setTranscribeProgress(s.progress);
+                    try {
+                        console.log('Polling /status/' + taskId);
+                        const resp = await fetch('/status/' + taskId);
+                        console.log('Response status:', resp.status);
+                        const s = await resp.json();
+                        console.log('Status data:', s);
+                        status.style.display = 'block';
+                        if (s.status === 'processing' || s.status === 'pending') {
+                            status.className = 'status processing';
+                            statusContent.innerHTML = '<span class="spinner"></span> Транскрибация…';
+                            if (s.progress !== undefined) {
+                                setTranscribeProgress(s.progress);
+                            }
+                        } else if (s.status === 'done') {
+                            clearInterval(poll);
+                            transcribeProgress.style.width = '100%';
+                            transcribeProgressText.textContent = 'Транскрибация: 100%';
+                            status.className = 'status done';
+                            statusContent.innerHTML = 'Готово!';
+                            showDownloadButton(taskId);
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Транскрибировать';
+                        } else if (s.status === 'error') {
+                            clearInterval(poll);
+                            transcribeProgressContainer.style.display = 'none';
+                            transcribeProgressText.style.display = 'none';
+                            status.className = 'status error';
+                            statusContent.textContent = 'Ошибка: ' + s.error;
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Транскрибировать';
                         }
-                    } else if (s.status === 'done') {
-                        clearInterval(poll);
-                        transcribeProgress.style.width = '100%';
-                        transcribeProgressText.textContent = 'Транскрибация: 100%';
-                        status.className = 'status done';
-                        statusContent.innerHTML = 'Готово!';
-                        showDownloadButton(taskId);
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Транскрибировать';
-                    } else if (s.status === 'error') {
-                        clearInterval(poll);
-                        transcribeProgressContainer.style.display = 'none';
-                        transcribeProgressText.style.display = 'none';
-                        status.className = 'status error';
-                        statusContent.textContent = 'Ошибка: ' + s.error;
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Транскрибировать';
+                    } catch (err) {
+                        console.error('Poll error:', err);
                     }
                 }, 1000);
 
