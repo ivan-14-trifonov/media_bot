@@ -110,7 +110,7 @@ def transcribe_local(input_path, model_name="small", language=None):
     return result.get("text", "")
 
 
-def transcribe_with_progress(input_path, model_name="small", chunk_seconds=30, language=None):
+def transcribe_with_progress(input_path, model_name="small", chunk_seconds=30, language=None, progress_callback=None):
     """Разбивает аудио на чанки через ffmpeg, транскрибирует по-чанково и печатает прогресс в процентах."""
     try:
         import whisper
@@ -201,6 +201,11 @@ def transcribe_with_progress(input_path, model_name="small", chunk_seconds=30, l
             processed += length
             percent = min(100.0, processed / dur_s * 100.0) if dur_s > 0 else 100.0
             print(f"Progress: {percent:.1f}% ({i+1}/{chunk_count})", end="\r", flush=True)
+            if progress_callback:
+                try:
+                    progress_callback(percent)
+                except Exception:
+                    pass
             # небольшая пауза, чтобы прогресс читался в консоли
             time.sleep(0.01)
 

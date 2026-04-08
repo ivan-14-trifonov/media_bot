@@ -6,6 +6,7 @@ Flask веб-приложение для транскрибирования ау
 import os
 import uuid
 import threading
+import time
 from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file, abort
@@ -23,7 +24,7 @@ ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "opus"}
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 os.makedirs(app.config["RESULT_FOLDER"], exist_ok=True)
 
-# Хранилище задач: {task_id: {"status": "pending|processing|done|error", "result_path": ..., "error": ...}}
+# Хранилище задач: {task_id: {"status": "pending|processing|done|error", "progress": 0-100, "result_path": ..., "error": ...}}
 tasks = {}
 
 
@@ -33,17 +34,23 @@ def allowed_file(filename):
 
 def process_task(task_id, input_path, output_path, model_name, language, chunk_seconds):
     """Фоновая обработка задачи."""
+    def on_progress(percent):
+        tasks[task_id]["progress"] = round(percent, 1)
+
     try:
         tasks[task_id]["status"] = "processing"
+        tasks[task_id]["progress"] = 0
         text = transcribe_with_progress(
             input_path,
             model_name=model_name,
             chunk_seconds=chunk_seconds,
             language=language if language else None,
+            progress_callback=on_progress,
         )
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(text)
         tasks[task_id]["status"] = "done"
+        tasks[task_id]["progress"] = 100
         tasks[task_id]["result_path"] = output_path
     except Exception as e:
         tasks[task_id]["status"] = "error"
@@ -90,6 +97,7 @@ def transcribe():
 
     tasks[task_id] = {
         "status": "pending",
+        "progress": 0,
         "result_path": None,
         "error": None,
         "original_filename": Path(original_filename).stem,
@@ -110,7 +118,7 @@ def status(task_id):
     task = tasks.get(task_id)
     if not task:
         return jsonify({"error": "Задача не найдена"}), 404
-    return jsonify({"status": task["status"], "error": task.get("error")})
+    return jsonify({"status": task["status"], "progress": task.get("progress", 0), "error": task.get("error")})
 
 
 @app.route("/download/<task_id>")

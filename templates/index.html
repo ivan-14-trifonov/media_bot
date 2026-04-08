@@ -134,6 +134,26 @@
             background: #fde8e8;
             color: #a81a1a;
         }
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #d0d5dd;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4a90d9;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            font-size: 13px;
+            margin-top: 6px;
+            color: #1a56a8;
+        }
         .download-btn {
             display: inline-block;
             margin-top: 10px;
@@ -145,9 +165,24 @@
             font-weight: 600;
             font-size: 14px;
             transition: background 0.2s;
+            cursor: pointer;
+            border: none;
         }
         .download-btn:hover {
             background: #14632f;
+        }
+        .download-btn:disabled {
+            background: #b0b8c4;
+            cursor: not-allowed;
+        }
+        .download-progress {
+            margin-top: 10px;
+        }
+        .download-progress .progress-bar {
+            background: #1a7a42;
+        }
+        .download-progress .progress-text {
+            color: #1a7a42;
         }
         .spinner {
             display: inline-block;
@@ -211,7 +246,19 @@
             <button type="submit" id="submitBtn">Транскрибировать</button>
         </form>
 
-        <div class="status" id="status"></div>
+        <div class="status" id="status">
+            <div id="statusContent"></div>
+            <div class="progress-bar-container" id="transcribeProgressContainer" style="display:none;">
+                <div class="progress-bar" id="transcribeProgress"></div>
+            </div>
+            <div class="progress-text" id="transcribeProgressText" style="display:none;"></div>
+            <div class="download-progress" id="downloadProgress" style="display:none;">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="downloadProgress"></div>
+                </div>
+                <div class="progress-text" id="downloadProgressText"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -220,6 +267,10 @@
         const fileName = document.getElementById('fileName');
         const form = document.getElementById('transcribeForm');
         const status = document.getElementById('status');
+        const statusContent = document.getElementById('statusContent');
+        const transcribeProgressContainer = document.getElementById('transcribeProgressContainer');
+        const transcribeProgress = document.getElementById('transcribeProgress');
+        const transcribeProgressText = document.getElementById('transcribeProgressText');
         const submitBtn = document.getElementById('submitBtn');
 
         audioFile.addEventListener('change', () => {
@@ -246,12 +297,27 @@
             }
         });
 
+        function resetProgress() {
+            transcribeProgressContainer.style.display = 'none';
+            transcribeProgressText.style.display = 'none';
+            transcribeProgress.style.width = '0%';
+            transcribeProgressText.textContent = '';
+        }
+
+        function setTranscribeProgress(percent) {
+            transcribeProgressContainer.style.display = 'block';
+            transcribeProgressText.style.display = 'block';
+            transcribeProgress.style.width = percent + '%';
+            transcribeProgressText.textContent = 'Транскрибация: ' + percent.toFixed(1) + '%';
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
             submitBtn.textContent = 'Отправка…';
             status.className = 'status';
             status.style.display = 'none';
+            resetProgress();
 
             const formData = new FormData(form);
 
@@ -261,7 +327,7 @@
 
                 if (data.error) {
                     status.className = 'status error';
-                    status.textContent = 'Ошибка: ' + data.error;
+                    statusContent.textContent = 'Ошибка: ' + data.error;
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Транскрибировать';
                     return;
@@ -269,32 +335,110 @@
 
                 const taskId = data.task_id;
                 status.className = 'status processing';
-                status.innerHTML = '<span class="spinner"></span> Транскрибация…';
+                statusContent.innerHTML = '<span class="spinner"></span> Транскрибация…';
+                transcribeProgressContainer.style.display = 'block';
+                transcribeProgressText.style.display = 'block';
 
                 const poll = setInterval(async () => {
                     const s = await fetch('/status/' + taskId).then(r => r.json());
-                    if (s.status === 'done') {
+                    if (s.status === 'processing' || s.status === 'pending') {
+                        if (s.progress !== undefined) {
+                            setTranscribeProgress(s.progress);
+                        }
+                    } else if (s.status === 'done') {
                         clearInterval(poll);
+                        transcribeProgress.style.width = '100%';
+                        transcribeProgressText.textContent = 'Транскрибация: 100%';
                         status.className = 'status done';
-                        status.innerHTML = 'Готово! <a class="download-btn" href="/download/' + taskId + '">Скачать результат</a>';
+                        statusContent.innerHTML = 'Готово!';
+                        showDownloadButton(taskId);
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Транскрибировать';
                     } else if (s.status === 'error') {
                         clearInterval(poll);
+                        transcribeProgressContainer.style.display = 'none';
+                        transcribeProgressText.style.display = 'none';
                         status.className = 'status error';
-                        status.textContent = 'Ошибка: ' + s.error;
+                        statusContent.textContent = 'Ошибка: ' + s.error;
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Транскрибировать';
                     }
-                }, 2000);
+                }, 1000);
 
             } catch (err) {
                 status.className = 'status error';
-                status.textContent = 'Ошибка сети: ' + err.message;
+                statusContent.textContent = 'Ошибка сети: ' + err.message;
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Транскрибировать';
             }
         });
+
+        function showDownloadButton(taskId) {
+            const btn = document.createElement('button');
+            btn.className = 'download-btn';
+            btn.textContent = 'Скачать результат';
+            btn.onclick = () => downloadFile(taskId, btn);
+            status.appendChild(btn);
+        }
+
+        async function downloadFile(taskId, btn) {
+            btn.disabled = true;
+            btn.textContent = 'Скачивание…';
+
+            const downloadProgressContainer = document.getElementById('downloadProgress');
+            const downloadProgressBar = document.getElementById('downloadProgress');
+            const downloadProgressText = document.getElementById('downloadProgressText');
+            downloadProgressContainer.style.display = 'block';
+            downloadProgressBar.style.width = '0%';
+            downloadProgressText.textContent = 'Скачивание: 0%';
+
+            try {
+                const response = await fetch('/download/' + taskId);
+                if (!response.ok) throw new Error('Ошибка скачивания');
+
+                const contentLength = response.headers.get('Content-Length');
+                const total = contentLength ? parseInt(contentLength, 10) : 0;
+                let loaded = 0;
+
+                const reader = response.body.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    loaded += value.length;
+                    if (total > 0) {
+                        const percent = (loaded / total) * 100;
+                        downloadProgressBar.style.width = percent + '%';
+                        downloadProgressText.textContent = 'Скачивание: ' + percent.toFixed(1) + '%';
+                    }
+                }
+
+                downloadProgressBar.style.width = '100%';
+                downloadProgressText.textContent = 'Скачивание: 100%';
+
+                const blob = new Blob(chunks);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'transcript.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                setTimeout(() => {
+                    downloadProgressContainer.style.display = 'none';
+                }, 2000);
+                btn.textContent = 'Скачано ✓';
+            } catch (err) {
+                downloadProgressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = 'Скачать результат';
+                alert('Ошибка при скачивании: ' + err.message);
+            }
+        }
     </script>
 </body>
 </html>
