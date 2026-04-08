@@ -311,33 +311,64 @@
             transcribeProgressText.textContent = 'Транскрибация: ' + percent.toFixed(1) + '%';
         }
 
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Б';
+            const k = 1024;
+            const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Отправка…';
+            submitBtn.textContent = 'Загрузка файла…';
             status.className = 'status';
             status.style.display = 'none';
             resetProgress();
 
             const formData = new FormData(form);
+            const file = audioFile.files[0];
+            const totalSize = file ? file.size : 0;
 
             try {
-                const resp = await fetch('/transcribe', { method: 'POST', body: formData });
-                const data = await resp.json();
+                const xhr = new XMLHttpRequest();
 
-                if (data.error) {
-                    status.className = 'status error';
-                    statusContent.textContent = 'Ошибка: ' + data.error;
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Транскрибировать';
-                    return;
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = (e.loaded / e.total) * 100;
+                        submitBtn.textContent = 'Загрузка файла… ' + percent.toFixed(0) + '%';
+                        setTranscribeProgress(percent);
+                        transcribeProgressText.textContent = 'Загрузка: ' + formatBytes(e.loaded) + ' / ' + formatBytes(e.total) + ' (' + percent.toFixed(0) + '%)';
+                    }
+                });
+
+                const taskId = await new Promise((resolve, reject) => {
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            const data = JSON.parse(xhr.responseText);
+                            if (data.error) reject(new Error(data.error));
+                            else resolve(data.task_id);
+                        } else {
+                            reject(new Error('Ошибка сервера: ' + xhr.status));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Ошибка сети'));
+                    xhr.open('POST', '/transcribe');
+                    xhr.send(formData);
+                });
+
+                if (totalSize > 0) {
+                    transcribeProgress.style.width = '100%';
+                    transcribeProgressText.textContent = 'Загрузка: ' + formatBytes(totalSize) + ' / ' + formatBytes(totalSize) + ' (100%)';
                 }
 
-                const taskId = data.task_id;
+                // Небольшая задержка, чтобы пользователь увидел 100% загрузки
+                await new Promise(r => setTimeout(r, 300));
+                resetProgress();
+
                 status.className = 'status processing';
                 statusContent.innerHTML = '<span class="spinner"></span> Транскрибация…';
-                transcribeProgressContainer.style.display = 'block';
-                transcribeProgressText.style.display = 'block';
 
                 const poll = setInterval(async () => {
                     const s = await fetch('/status/' + taskId).then(r => r.json());
