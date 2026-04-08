@@ -12,7 +12,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 
-from transcribe import transcribe_with_progress
+from transcribe import transcribe_with_progress, transcribe_local
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
@@ -32,7 +32,7 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def process_task(task_id, input_path, output_path, model_name, language, chunk_seconds):
+def process_task(task_id, input_path, output_path, model_name, language, chunk_seconds, use_chunks=True):
     """Фоновая обработка задачи."""
     def on_progress(percent):
         tasks[task_id]["progress"] = round(percent, 1)
@@ -40,13 +40,21 @@ def process_task(task_id, input_path, output_path, model_name, language, chunk_s
     try:
         tasks[task_id]["status"] = "processing"
         tasks[task_id]["progress"] = 0
-        text = transcribe_with_progress(
-            input_path,
-            model_name=model_name,
-            chunk_seconds=chunk_seconds,
-            language=language if language else None,
-            progress_callback=on_progress,
-        )
+        if use_chunks:
+            text = transcribe_with_progress(
+                input_path,
+                model_name=model_name,
+                chunk_seconds=chunk_seconds,
+                language=language if language else None,
+                progress_callback=on_progress,
+            )
+        else:
+            text = transcribe_local(
+                input_path,
+                model_name=model_name,
+                language=language if language else None,
+            )
+            tasks[task_id]["progress"] = 100
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(text)
         tasks[task_id]["status"] = "done"
@@ -83,6 +91,7 @@ def transcribe():
     model_name = request.form.get("model", "small")
     language = request.form.get("language", "").strip() or None
     chunk_seconds = int(request.form.get("chunk_seconds", 30))
+    use_chunks = request.form.get("use_chunks", "true").lower() == "true"
 
     task_id = uuid.uuid4().hex
     original_filename = secure_filename(file.filename)
@@ -105,7 +114,7 @@ def transcribe():
 
     thread = threading.Thread(
         target=process_task,
-        args=(task_id, input_path, output_path, model_name, language, chunk_seconds),
+        args=(task_id, input_path, output_path, model_name, language, chunk_seconds, use_chunks),
     )
     thread.daemon = True
     thread.start()
