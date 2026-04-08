@@ -1,20 +1,22 @@
-# Используем официальный образ Python 3.11 (оптимизированная версия slim)
 FROM python:3.11-slim
 
-# Устанавливаем рабочую директорию внутри контейнера
+# Системные зависимости: ffmpeg, ffprobe
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Копируем файл с зависимостями
 COPY requirements.txt .
-
-# Устанавливаем зависимости
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем весь код приложения
-COPY app.py .
+COPY . .
 
-# Открываем порт 5000 для доступа к приложению
+# Создаём директории для файлов
+RUN mkdir -p uploads results
+
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 5000
 
-# Запускаем приложение
 CMD ["python", "app.py"]

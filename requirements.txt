@@ -1,1 +1,5 @@
-Flask==2.3.3
+openai-whisper>=2023.8.8
+torch
+tqdm
+flask
+werkzeug

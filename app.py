@@ -1,170 +1,129 @@
-from flask import Flask, jsonify, request
-import datetime
+#!/usr/bin/env python3
+"""
+Flask веб-приложение для транскрибирования аудиофайлов через OpenAI Whisper.
+"""
+
 import os
-import platform
+import uuid
+import threading
+from pathlib import Path
+
+from flask import Flask, render_template, request, jsonify, send_file, abort
+from werkzeug.utils import secure_filename
+
+from transcribe import transcribe_with_progress
 
 app = Flask(__name__)
+app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
+app.config["RESULT_FOLDER"] = os.path.join(os.path.dirname(__file__), "results")
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB max
 
-# Главная страница
-@app.route('/')
-def home():
-    return """
-    <html>
-        <head>
-            <title>Мой Docker Python сервер</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    margin-top: 50px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                }
-                .container {
-                    background: rgba(0,0,0,0.7);
-                    padding: 30px;
-                    border-radius: 15px;
-                    display: inline-block;
-                    max-width: 600px;
-                }
-                h1 { color: #ffd700; }
-                a {
-                    color: #ffd700;
-                    text-decoration: none;
-                }
-                a:hover {
-                    text-decoration: underline;
-                }
-                button {
-                    background: #ffd700;
-                    color: #333;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    margin-top: 20px;
-                }
-                button:hover {
-                    background: #ffed4a;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🐳 Docker Python Сервер 🐍</h1>
-                <p>Привет! Этот сервер работает внутри Docker контейнера!</p>
-                <p>📅 Текущее время: <strong id="time">загрузка...</strong></p>
-                <p>🏷️ Имя контейнера: <strong>""" + os.uname().nodename + """</strong></p>
-                <p>💻 Операционная система: <strong>""" + platform.system() + " " + platform.release() + """</strong></p>
-                <p>🐍 Версия Python: <strong>""" + platform.python_version() + """</strong></p>
-                <button onclick="fetchData()">📡 Получить данные с API</button>
-                <div id="api-data" style="margin-top: 20px;"></div>
-                <hr>
-                <p>
-                    📚 <a href="/api/info">API информация</a> | 
-                    🔧 <a href="/health">Health check</a>
-                </p>
-            </div>
-            <script>
-                function updateTime() {
-                    fetch('/api/time')
-                        .then(response => response.json())
-                        .then(data => {
-                            document.getElementById('time').textContent = data.time;
-                        });
-                }
-                setInterval(updateTime, 1000);
-                updateTime();
-                
-                function fetchData() {
-                    fetch('/api/data')
-                        .then(response => response.json())
-                        .then(data => {
-                            const div = document.getElementById('api-data');
-                            div.innerHTML = '<div style="background: white; color: #333; padding: 10px; border-radius: 5px;"><strong>Данные с API:</strong><br>' + 
-                                'Сообщение: ' + data.message + '<br>' +
-                                'Сервер работает: ' + data.uptime + ' секунд</div>';
-                        });
-                }
-            </script>
-        </body>
-    </html>
-    """
+ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "opus"}
 
-# API: текущее время
-@app.route('/api/time')
-def api_time():
-    return jsonify({
-        'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'timestamp': datetime.datetime.now().isoformat(),
-        'timezone': str(datetime.datetime.now().astimezone().tzinfo)
-    })
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+os.makedirs(app.config["RESULT_FOLDER"], exist_ok=True)
 
-# API: информация о сервере
-@app.route('/api/info')
-def api_info():
-    return jsonify({
-        'server': 'Docker Python Server',
-        'version': '1.0.0',
-        'hostname': os.uname().nodename,
-        'python_version': platform.python_version(),
-        'os': platform.system(),
-        'os_release': platform.release(),
-        'docker': True
-    })
+# Хранилище задач: {task_id: {"status": "pending|processing|done|error", "result_path": ..., "error": ...}}
+tasks = {}
 
-# Health check для оркестрации
-@app.route('/health')
-def health():
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.datetime.now().isoformat(),
-        'uptime': str(datetime.datetime.now() - start_time)
-    }), 200
 
-# API: пример данных
-@app.route('/api/data')
-def api_data():
-    return jsonify({
-        'message': 'Привет из Docker контейнера!',
-        'data': [1, 2, 3, 4, 5],
-        'uptime': (datetime.datetime.now() - start_time).total_seconds(),
-        'status': 'success'
-    })
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# API: echo (отправляет обратно то, что вы отправили)
-@app.route('/api/echo', methods=['POST'])
-def echo():
-    data = request.get_json()
-    return jsonify({
-        'echo': data,
-        'received_at': datetime.datetime.now().isoformat()
-    })
 
-# Счетчик запросов (демонстрация состояния)
-request_counter = 0
+def process_task(task_id, input_path, output_path, model_name, language, chunk_seconds):
+    """Фоновая обработка задачи."""
+    try:
+        tasks[task_id]["status"] = "processing"
+        text = transcribe_with_progress(
+            input_path,
+            model_name=model_name,
+            chunk_seconds=chunk_seconds,
+            language=language if language else None,
+        )
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(text)
+        tasks[task_id]["status"] = "done"
+        tasks[task_id]["result_path"] = output_path
+    except Exception as e:
+        tasks[task_id]["status"] = "error"
+        tasks[task_id]["error"] = str(e)
+    finally:
+        # Удаляем входной файл после обработки
+        try:
+            os.remove(input_path)
+        except Exception:
+            pass
 
-@app.before_request
-def count_requests():
-    global request_counter
-    request_counter += 1
 
-@app.route('/api/stats')
-def stats():
-    return jsonify({
-        'total_requests': request_counter,
-        'uptime_seconds': (datetime.datetime.now() - start_time).total_seconds()
-    })
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-# Запуск сервера
-if __name__ == '__main__':
-    start_time = datetime.datetime.now()
-    print("=" * 50)
-    print("🚀 Docker Python Сервер запущен!")
-    print("=" * 50)
-    print(f"📅 Время запуска: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🏷️  Имя хоста: {os.uname().nodename}")
-    print(f"🐍 Версия Python: {platform.python_version()}")
-    print(f"🌐 Сервер доступен на http://0.0.0.0:5000")
-    print("=" * 50)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+
+@app.route("/transcribe", methods=["POST"])
+def transcribe():
+    if "audio" not in request.files:
+        return jsonify({"error": "Файл не загружен"}), 400
+
+    file = request.files["audio"]
+    if file.filename == "":
+        return jsonify({"error": "Файл не выбран"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": f"Неподдерживаемый формат. Допустимые: {', '.join(ALLOWED_EXTENSIONS)}"}), 400
+
+    model_name = request.form.get("model", "small")
+    language = request.form.get("language", "").strip() or None
+    chunk_seconds = int(request.form.get("chunk_seconds", 30))
+
+    task_id = uuid.uuid4().hex
+    original_filename = secure_filename(file.filename)
+    ext = Path(original_filename).suffix
+    input_filename = f"{task_id}{ext}"
+    output_filename = f"{task_id}.txt"
+
+    input_path = os.path.join(app.config["UPLOAD_FOLDER"], input_filename)
+    output_path = os.path.join(app.config["RESULT_FOLDER"], output_filename)
+
+    file.save(input_path)
+
+    tasks[task_id] = {
+        "status": "pending",
+        "result_path": None,
+        "error": None,
+        "original_filename": Path(original_filename).stem,
+    }
+
+    thread = threading.Thread(
+        target=process_task,
+        args=(task_id, input_path, output_path, model_name, language, chunk_seconds),
+    )
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({"task_id": task_id})
+
+
+@app.route("/status/<task_id>")
+def status(task_id):
+    task = tasks.get(task_id)
+    if not task:
+        return jsonify({"error": "Задача не найдена"}), 404
+    return jsonify({"status": task["status"], "error": task.get("error")})
+
+
+@app.route("/download/<task_id>")
+def download(task_id):
+    task = tasks.get(task_id)
+    if not task or task["status"] != "done" or not task["result_path"]:
+        abort(404)
+    return send_file(
+        task["result_path"],
+        as_attachment=True,
+        download_name=f"{task['original_filename']}.txt",
+    )
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
