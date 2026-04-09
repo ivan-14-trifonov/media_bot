@@ -37,6 +37,6 @@ RUN mkdir -p /root/.kit/outputs /root/.kit/logs
 ENV KIT_BASE_DIR=/root/.kit
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 7700
+EXPOSE 5000
 
-CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "7700"]
+CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "5000"]
