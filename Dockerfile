@@ -12,9 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir yt-dlp
 
 # Install deno (JS runtime for YouTube format support)
-RUN curl -fsSL https://deno.land/install.sh | sh
-ENV DENO_INSTALL="/root/.deno"
-ENV PATH="${DENO_INSTALL}/bin:${PATH}"
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then DENO_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then DENO_ARCH="aarch64"; \
+    else DENO_ARCH="x86_64"; fi && \
+    curl -fsSL "https://github.com/denoland/deno/releases/latest/download/deno-${DENO_ARCH}-unknown-linux-gnu.zip" -o /tmp/deno.zip && \
+    unzip -o /tmp/deno.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/deno && \
+    rm /tmp/deno.zip
 
 # Work dir
 WORKDIR /app
