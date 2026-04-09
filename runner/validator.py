@@ -114,6 +114,21 @@ class OutputValidator:
         # Check file output
         if 'file' in rules:
             file_rules = rules['file']
+            
+            # Handle shorthand: file: True means "required file, no extra constraints"
+            if isinstance(file_rules, bool):
+                if file_rules:
+                    # Check if file exists in output_params or output_files
+                    file_found = (
+                        output_name in output_params
+                        or any(Path(f).name.startswith(output_name) for f in output_files)
+                        or len(output_files) > 0
+                    )
+                    if not file_found:
+                        return False, [f"Required file output '{output_name}' not found"]
+                # If file_rules is False, nothing to check
+                return True, warnings
+            
             file_param = file_rules.get('param', output_name)
             file_path = output_params.get(file_param)
             

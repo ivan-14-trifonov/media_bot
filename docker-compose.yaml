@@ -1,0 +1,15 @@
+services:
+  media-bot:
+    build: .
+    container_name: media-bot
+    ports:
+      - "7700:7700"
+    volumes:
+      - media-data:/root/.kit
+    environment:
+      - KIT_BASE_DIR=/root/.kit
+      - LLM_API_BASE=${LLM_API_BASE:-http://192.168.1.2:3264/v1}
+    restart: unless-stopped
+
+volumes:
+  media-data:

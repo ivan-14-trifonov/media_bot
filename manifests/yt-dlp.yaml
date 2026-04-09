@@ -69,7 +69,7 @@ outputs:
 modes:
   download:
     description: Download video with audio
-    command: "python -m yt_dlp --proxy '{proxy}' -f '{format}' -o '{out.output_file}' '{url}'"
+    command: "yt-dlp --proxy '{proxy}' -f '{format}' -o '{out.output_file}' '{url}'"
     output:
       output_file:
         path: "{job_dir}/{step_id}/%(title)s.mp4"
@@ -80,7 +80,7 @@ modes:
 
   audio_only:
     description: Extract audio only
-    command: "python -m yt_dlp --proxy '{proxy}' -x --audio-format mp3 -o '{out.output_file}' '{url}'"
+    command: "yt-dlp --proxy '{proxy}' -x --audio-format mp3 -o '{out.output_file}' '{url}'"
     output:
       output_file:
         path: "{job_dir}/{step_id}/%(title)s.mp3"
@@ -90,7 +90,7 @@ modes:
 
   subtitles:
     description: Download subtitles only
-    command: "python -m yt_dlp --proxy '{proxy}' --write-auto-subs --sub-lang '{lang}' --skip-download -o '{out.output_file}' '{url}'"
+    command: "yt-dlp --proxy '{proxy}' --write-auto-subs --sub-lang '{lang}' --skip-download -o '{out.output_file}' '{url}'"
     output:
       output_file:
         file:
@@ -107,7 +107,7 @@ modes:
 
   probe:
     description: Probe video info without downloading
-    command: "python -m yt_dlp --proxy '{proxy}' -J '{url}'"
+    command: "yt-dlp --proxy '{proxy}' -J '{url}'"
     output:
       video_info:
         parse:
@@ -121,7 +121,7 @@ modes:
 
   playlist:
     description: Download entire playlist
-    command: "python -m yt_dlp --proxy '{proxy}' -f '{format}' --yes-playlist -o '{out.output_file}' '{url}'"
+    command: "yt-dlp --proxy '{proxy}' -f '{format}' --yes-playlist -o '{out.output_file}' '{url}'"
     output:
       output_file:
         path: "{job_dir}/{step_id}/%(playlist)s/%(title)s.mp4"

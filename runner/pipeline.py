@@ -280,23 +280,40 @@ Only respond with the JSON object, no other text.
 
     def _fallback_pipeline(self, prompt: str) -> str:
         """Fallback rule-based pipeline generation"""
-        # Simple keyword-based pipeline generation
-        prompt_lower = prompt.lower()
+        # Extract goal from prompt (it's between "## Goal" and "## Input Data")
+        import re
+        goal_match = re.search(r'## Goal\s*\n(.*?)\n## Input Data', prompt, re.DOTALL)
+        goal_text = goal_match.group(1).strip().lower() if goal_match else prompt.lower()
         
         steps = []
         manifest_refs = []
         
-        if 'youtube' in prompt_lower or 'download' in prompt_lower:
-            steps.append({
-                'tool': 'yt-dlp',
-                'mode': 'download',
-                'input_params': {'url': '$input.url'},
-                'description': 'Download video from URL'
-            })
+        # Detect audio-only intent (English and Russian) — based on GOAL only
+        audio_intent = any(kw in goal_text for kw in ['аудио', 'только звук', 'only audio', 'extract audio'])
+        # Don't use 'audio' alone — it appears in tool summaries; use Russian 'аудио' or phrases
+        video_intent = any(kw in goal_text for kw in ['видео', 'video', 'download video'])
+        
+        if 'youtube' in prompt.lower() or 'download' in prompt.lower() or 'скачать' in goal_text:
+            if audio_intent and not video_intent:
+                # Audio-only mode
+                steps.append({
+                    'tool': 'yt-dlp',
+                    'mode': 'audio_only',
+                    'input_params': {'url': '$input.url'},
+                    'description': 'Download audio from YouTube'
+                })
+            else:
+                # Full video download
+                steps.append({
+                    'tool': 'yt-dlp',
+                    'mode': 'download',
+                    'input_params': {'url': '$input.url'},
+                    'description': 'Download video from URL'
+                })
             manifest_refs.append('yt-dlp')
         
-        if 'transcribe' in prompt_lower or 'subtitle' in prompt_lower:
-            if 'youtube' in prompt_lower:
+        if 'transcribe' in goal_text or 'subtitle' in goal_text or 'субтитр' in goal_text or 'транскриб' in goal_text:
+            if 'youtube' in prompt.lower():
                 # Try to get subs from yt-dlp first
                 steps.append({
                     'tool': 'yt-dlp',
@@ -322,7 +339,7 @@ Only respond with the JSON object, no other text.
                 })
                 manifest_refs.append('whisper')
         
-        if 'convert' in prompt_lower or 'format' in prompt_lower:
+        if 'convert' in goal_text or 'конверт' in goal_text or 'format' in goal_text or 'формат' in goal_text:
             steps.append({
                 'tool': 'ffmpeg',
                 'mode': 'convert',

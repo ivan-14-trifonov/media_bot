@@ -288,10 +288,12 @@ class KitRunner:
                     # Create a validation schema with mode-specific outputs
                     validation_schema = {**manifest, 'outputs': {}}
                     for out_name, out_rules in mode_outputs.items():
-                        # Convert mode output format to validation format
-                        validation_schema['outputs'][out_name] = {'file': out_rules.get('file', True)}
-                        if 'extension' in out_rules.get('file', {}):
-                            validation_schema['outputs'][out_name]['file']['extension'] = out_rules['file']['extension']
+                        file_rule = out_rules.get('file', True)
+                        # file can be bool (True) or dict with 'extension'
+                        if isinstance(file_rule, dict):
+                            validation_schema['outputs'][out_name] = {'file': file_rule}
+                        else:
+                            validation_schema['outputs'][out_name] = {'file': True}
                 else:
                     validation_schema = manifest
                 validator = OutputValidator(validation_schema)
