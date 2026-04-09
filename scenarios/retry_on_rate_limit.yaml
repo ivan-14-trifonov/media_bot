@@ -1,0 +1,47 @@
+# Scenario: Retry on Rate Limit
+# Tests the retry logic with exponential backoff when encountering rate limits
+
+schema_version: "0.2.0"
+name: retry_on_rate_limit
+description: Test retry behavior when hitting API rate limits
+
+trigger:
+  error_patterns:
+    - "HTTP Error 429"
+    - "Rate limit exceeded"
+    - "Too many requests"
+    - "Quota exceeded"
+
+config:
+  max_retries: 5
+  base_delay: 2.0
+  max_delay: 60.0
+  exponential_base: 2
+  jitter: true
+
+steps:
+  - name: Initial download attempt
+    tool: yt-dlp
+    mode: download
+    input:
+      url: "https://youtube.com/watch?v=dQw4w9WgXcQ"
+    expected_behavior:
+      - First attempt fails with 429
+      - Retry after 2 seconds
+      - Second attempt may also fail
+      - Continue with exponential backoff
+
+  - name: Verify retry timing
+    check:
+      - retry_count >= 1
+      - delay_between_attempts follows exponential pattern
+      - total_time < max_timeout
+
+expected_outcome:
+  success: Job completes after retries
+  or_failure: Job fails gracefully after max retries with clear error message
+
+metrics:
+  - retry_count
+  - total_duration
+  - delay_pattern_followed

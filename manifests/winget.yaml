@@ -1,0 +1,276 @@
+# winget Manifest
+# Schema Version: 0.2.0
+schema_version: "0.2.0"
+
+tool: winget
+description: Windows Package Manager for installing, upgrading, and managing applications
+
+version:
+  min: "1.0.0"
+  recommended: "1.6.0"
+
+# Input parameters
+inputs:
+  query:
+    type: string
+    required: false
+    description: Search term or package identifier
+
+  id:
+    type: string
+    required: false
+    description: Exact package identifier (e.g., Microsoft.VisualStudioCode)
+
+  name:
+    type: string
+    required: false
+    description: Exact package name
+
+  version:
+    type: string
+    required: false
+    description: Specific version to install
+
+  silent:
+    type: boolean
+    required: false
+    default: false
+    description: Run installation silently
+
+  interactive:
+    type: boolean
+    required: false
+    default: false
+    description: Force interactive mode
+
+  proxy:
+    type: string
+    required: false
+    description: "Proxy server (format: http://host:port)"
+
+  no_proxy:
+    type: boolean
+    required: false
+    default: false
+    description: Ignore system proxy settings
+
+  accept_package_agreements:
+    type: boolean
+    required: false
+    default: false
+    description: Accept package license agreements automatically
+
+  accept_source_agreements:
+    type: boolean
+    required: false
+    default: false
+    description: Accept source agreements automatically
+
+  all:
+    type: boolean
+    required: false
+    default: false
+    description: Upgrade all upgradable packages
+
+  output_file:
+    type: string
+    required: false
+    description: Path to export packages list
+
+  input_file:
+    type: string
+    required: false
+    description: Path to import packages from
+
+# Output definitions
+outputs:
+  packages_list:
+    param:
+      name: packages_list
+      type: array
+      required: false
+    description: List of installed/searched packages
+
+  export_file:
+    file:
+      required: false
+      param: export_file
+      extension: [json]
+    description: Exported packages manifest
+
+# Execution modes
+modes:
+  install:
+    description: Install a package
+    command: "winget install --id '{id}' --name '{name}' {version_flag} {silent_flag} {proxy_flag} {accept_flags}"
+    output:
+      install_result:
+        parse:
+          pattern: "Successfully installed|Already installed"
+          source: stdout
+    success_codes: [0]
+    timeout: 1800
+
+  search:
+    description: Search for a package
+    command: "winget search -q '{query}' {id_flag} {name_flag} {tag_flag}"
+    output:
+      packages_list:
+        parse:
+          pattern: "(?m)^([\\w\\.]+)\\s+([\\w\\s]+)\\s+([\\d\\.]+)"
+          source: stdout
+    success_codes: [0]
+    timeout: 60
+
+  list:
+    description: List installed packages
+    command: "winget list"
+    output:
+      packages_list:
+        parse:
+          pattern: ".*"
+          source: stdout
+    success_codes: [0]
+    timeout: 120
+
+  upgrade:
+    description: Upgrade a package or all packages
+    command: "winget upgrade {all_flag} --id '{id}' {silent_flag}"
+    output:
+      upgrade_result:
+        parse:
+          pattern: "Successfully upgraded|No upgrades available"
+          source: stdout
+    success_codes: [0]
+    timeout: 1800
+
+  uninstall:
+    description: Uninstall a package
+    command: "winget uninstall --id '{id}' --name '{name}' {silent_flag}"
+    output:
+      uninstall_result:
+        parse:
+          pattern: "Successfully uninstalled"
+          source: stdout
+    success_codes: [0]
+    timeout: 600
+
+  export:
+    description: Export installed packages to JSON
+    command: "winget export -o '{output_file}'"
+    output:
+      export_file:
+        path: "{output_file}"
+        file: true
+    success_codes: [0]
+    timeout: 120
+
+  import:
+    description: Install packages from JSON manifest
+    command: "winget import -i '{input_file}' {silent_flag}"
+    output:
+      import_result:
+        parse:
+          pattern: "Successfully installed|packages installed"
+          source: stdout
+    success_codes: [0]
+    timeout: 3600
+
+# Health check configuration
+health_check:
+  command: "winget --info"
+  expected_output:
+    pattern: "Windows Package Manager"
+  timeout: 10
+
+# Tool relationships
+relationships:
+  works_with:
+    - tool: powershell
+      description: Can run PowerShell scripts for advanced scenarios
+    - tool: windows-terminal
+      description: Preferred terminal for interactive operations
+
+  produces_for:
+    - tool: winget
+      mode: import
+      description: Export can be imported on another machine
+
+  consumes_from: []
+
+  alternatives:
+    - tool: chocolatey
+      condition: "On older Windows without winget"
+    - tool: scoop
+      condition: "For developer tools"
+
+# OS support
+os_support:
+  - Windows 10 (version 1709+)
+  - Windows 11
+
+# Proxy support
+proxy:
+  supported: true
+  config_via: cli_flag
+  env_vars: false
+
+# Known warnings
+known_warnings:
+  - pattern: "Package identifiers are case-sensitive"
+    severity: info
+    action: "Use exact case when specifying --id"
+  - pattern: "requires admin privileges"
+    severity: warning
+    action: "Run as administrator"
+  - pattern: "Exported manifests may not include non-winget"
+    severity: info
+    action: "Manual apps not exported"
+  - pattern: "Proxy settings may be overridden"
+    severity: warning
+    action: "Check group policy"
+
+# Retry configuration
+retry:
+  transient_errors:
+    - "Network connectivity issues"
+    - "Temporary source unavailability"
+    - "Connection timeout"
+  permanent_errors:
+    - "Invalid package ID"
+    - "Unsupported OS version"
+    - "Missing dependencies"
+    - "Package not found"
+
+# Confidence rules
+confidence:
+  rules:
+    - condition: "admin_required"
+      action: reduce
+      factor: 0.8
+      reason: "Requires elevation"
+    - condition: "network_error"
+      action: reduce
+      factor: 0.6
+      reason: "Source availability issues"
+
+# UI hints
+ui:
+  icon: "package"
+  color: "#0078D4"
+  input_form:
+    query:
+      type: text
+      placeholder: "Search for package..."
+      label: "Search"
+    id:
+      type: text
+      placeholder: "Microsoft.VisualStudioCode"
+      label: "Package ID"
+    silent:
+      type: checkbox
+      label: "Silent installation"
+    accept_package_agreements:
+      type: checkbox
+      label: "Accept agreements"
+      default: true

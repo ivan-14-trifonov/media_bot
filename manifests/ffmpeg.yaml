@@ -1,0 +1,232 @@
+# FFmpeg Manifest
+# Schema Version: 0.2.0
+schema_version: "0.2.0"
+
+tool: ffmpeg
+description: Convert and process audio/video files
+
+version:
+  min: "4.0"
+  recommended: "6.0"
+
+# Input parameters
+inputs:
+  input_file:
+    type: string
+    required: true
+    description: Input media file path
+    validation:
+      file_exists: true
+  
+  output_format:
+    type: string
+    required: false
+    default: "mp4"
+    description: Output format/extension
+    enum: [mp4, mkv, webm, avi, mov, mp3, aac, wav, flac]
+  
+  video_codec:
+    type: string
+    required: false
+    default: "libx264"
+    description: Video codec
+    enum: [libx264, libx265, libvpx-vp9, copy, none]
+  
+  audio_codec:
+    type: string
+    required: false
+    default: "aac"
+    description: Audio codec
+    enum: [aac, mp3, opus, copy, none]
+  
+  crf:
+    type: integer
+    required: false
+    default: 23
+    description: Quality (0-51, lower is better)
+    validation:
+      min: 0
+      max: 51
+  
+  preset:
+    type: string
+    required: false
+    default: "medium"
+    description: Encoding speed preset
+    enum: [ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow]
+  
+  scale:
+    type: string
+    required: false
+    description: Resolution scale (e.g., "1920x1080", "720:-1")
+  
+  extract_audio:
+    type: boolean
+    required: false
+    default: false
+    description: Extract audio only, no video
+
+# Output definitions
+outputs:
+  output_file:
+    file:
+      required: true
+      param: output_file
+      extension: [mp4, mkv, webm, avi, mov, mp3, aac, wav, flac]
+    description: Output media file
+  
+  duration:
+    param:
+      name: duration
+      type: float
+      required: false
+    description: Media duration in seconds
+
+# Execution modes
+modes:
+  convert:
+    description: Convert media to different format
+    command: "ffmpeg -y -i '{input_file}' -c:v '{video_codec}' -c:a '{audio_codec}' -crf '{crf}' -preset '{preset}' '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/output.{output_format}"
+        file: true
+    success_codes: [0]
+    timeout: 7200
+    probe: true
+
+  extract_audio:
+    description: Extract audio from video
+    command: "ffmpeg -y -i '{input_file}' -vn -c:a '{audio_codec}' '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/audio.mp3"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+  scale:
+    description: Resize video
+    command: "ffmpeg -y -i '{input_file}' -vf 'scale={scale}' -c:v '{video_codec}' -c:a copy '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/scaled.mp4"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+  trim:
+    description: Trim video to specific duration
+    command: "ffmpeg -y -i '{input_file}' -ss '{start_time}' -t '{duration}' -c copy '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/trimmed.mp4"
+        file: true
+    success_codes: [0]
+    timeout: 1800
+
+  concat:
+    description: Concatenate multiple videos
+    command: "ffmpeg -y -f concat -safe 0 -i '{playlist_file}' -c copy '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/concatenated.mp4"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+  gif:
+    description: Convert video to GIF
+    command: "ffmpeg -y -i '{input_file}' -vf 'fps={fps},scale={scale}' '{out.output_file}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/output.gif"
+        file: true
+    success_codes: [0]
+    timeout: 1800
+
+  probe:
+    description: Get media file information
+    command: "ffprobe -v quiet -print_format json -show_format -show_streams '{input_file}'"
+    output:
+      media_info:
+        parse:
+          pattern: ".*"
+          source: stdout
+    success_codes: [0]
+    timeout: 60
+
+# Health check configuration
+health_check:
+  command: "ffmpeg -version"
+  expected_output:
+    pattern: "ffmpeg version"
+  timeout: 10
+
+# Tool relationships
+relationships:
+  produces_for:
+    - tool: whisper
+      description: Extracted audio can be transcribed
+  
+  consumes_from:
+    - tool: yt-dlp
+      description: Can process downloaded videos
+    - tool: whisper
+      description: Can burn subtitles into video
+  
+  alternatives: []
+
+# Retry configuration
+retry:
+  transient_errors:
+    - "Connection reset"
+    - "Resource temporarily unavailable"
+  permanent_errors:
+    - "No such file"
+    - "Invalid data found"
+    - "Decoder not found"
+
+# Installation configuration
+install:
+  winget:
+    id: "Gyan.FFmpeg"
+    alternatives:
+      - "yt-dlp.FFmpeg"
+      - "BtbN.FFmpeg.GPL"
+  pip: null
+  github:
+    repo: "FFmpeg/FFmpeg"
+  methods: ["winget", "github"]
+  health_check_command: "ffmpeg -version"
+  version_command: "ffmpeg -version"
+  notes: |
+    FFmpeg is best installed via winget on Windows.
+    The Gyan.FFmpeg package provides a full static build.
+    yt-dlp.FFmpeg is a minimal build optimized for yt-dlp.
+
+# UI hints
+ui:
+  icon: "film"
+  color: "#007ACC"
+  input_form:
+    input_file:
+      type: file
+      accept: "video/*,audio/*"
+      label: "Input File"
+    output_format:
+      type: select
+      options:
+        - value: "mp4"
+          label: "MP4"
+        - value: "mkv"
+          label: "MKV"
+        - value: "webm"
+          label: "WebM"
+        - value: "mp3"
+          label: "MP3 (audio)"
+    crf:
+      type: range
+      min: 0
+      max: 51
+      label: "Quality (CRF)"

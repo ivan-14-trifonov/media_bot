@@ -1,0 +1,258 @@
+# yt-dlp Manifest
+# Schema Version: 0.2.0
+schema_version: "0.2.0"
+
+tool: yt-dlp
+description: Download videos from YouTube and other video platforms
+
+version:
+  min: "2023.0.0"
+  recommended: "2024.0.0"
+
+# Input parameters
+inputs:
+  url:
+    type: string
+    required: true
+    description: Video URL to download
+    validation:
+      pattern: "^https?://"
+  
+  format:
+    type: string
+    required: false
+    default: "bestvideo+bestaudio/best"
+    description: Format selection string
+  
+  output_template:
+    type: string
+    required: false
+    default: "%(title)s.%(ext)s"
+    description: Output filename template
+  
+  write_subs:
+    type: boolean
+    required: false
+    default: false
+    description: Write subtitle file
+  
+  lang:
+    type: string
+    required: false
+    default: "en"
+    description: Language code for subtitles
+
+# Output definitions
+outputs:
+  output_file:
+    file:
+      required: true
+      param: output_file
+      extension: [mp4, mkv, webm, mp3, m4a]
+    description: Downloaded media file
+  
+  subtitle_file:
+    file:
+      required: false
+      param: subtitle_file
+      extension: [srt, vtt]
+    description: Subtitle file (if requested)
+  
+  info_json:
+    file:
+      required: false
+      param: info_json
+      extension: [json]
+    description: Video metadata JSON
+
+# Execution modes
+modes:
+  download:
+    description: Download video with audio
+    command: "python -m yt_dlp --proxy '{proxy}' -f '{format}' -o '{out.output_file}' '{url}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/%(title)s.mp4"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+    probe: true
+
+  audio_only:
+    description: Extract audio only
+    command: "python -m yt_dlp --proxy '{proxy}' -x --audio-format mp3 -o '{out.output_file}' '{url}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/%(title)s.mp3"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+  subtitles:
+    description: Download subtitles only
+    command: "python -m yt_dlp --proxy '{proxy}' --write-auto-subs --sub-lang '{lang}' --skip-download -o '{out.output_file}' '{url}'"
+    output:
+      output_file:
+        file:
+          required: true
+          extension: [vtt, srt]
+        path: "{job_dir}/{step_id}/%(title)s.%(ext)s"
+      subtitle_file:
+        file:
+          required: false
+          extension: [vtt, srt]
+        path: "{job_dir}/{step_id}/%(title)s.%(ext)s"
+    success_codes: [0, 1]
+    timeout: 600
+
+  probe:
+    description: Probe video info without downloading
+    command: "python -m yt_dlp --proxy '{proxy}' -J '{url}'"
+    output:
+      video_info:
+        parse:
+          pattern: ".*"
+          source: stdout
+      info_json:
+        path: "{job_dir}/{step_id}/info.json"
+        file: true
+    success_codes: [0]
+    timeout: 60
+
+  playlist:
+    description: Download entire playlist
+    command: "python -m yt_dlp --proxy '{proxy}' -f '{format}' --yes-playlist -o '{out.output_file}' '{url}'"
+    output:
+      output_file:
+        path: "{job_dir}/{step_id}/%(playlist)s/%(title)s.mp4"
+        file: true
+    success_codes: [0]
+    timeout: 7200
+
+# Health check configuration
+health_check:
+  command: "yt-dlp --version"
+  expected_output:
+    pattern: "^\\d{4}\\.\\d{2}\\.\\d{2}"
+  timeout: 10
+  # Additional checks for runtime dependencies
+  checks:
+    - name: js_runtime
+      description: Check for JS runtime (deno/node) for YouTube JS decryption
+      command: "deno --version || node --version"
+      required: false
+      warning_if_missing: true
+      warning_message: "No JS runtime found - some YouTube formats may be unavailable"
+    - name: proxy_connectivity
+      description: Check SOCKS5 proxy connectivity
+      command: "python -c \"import socket; s=socket.socket(); s.settimeout(5); s.connect(('127.0.0.1',10808)); print('OK')\""
+      required: false
+      warning_if_missing: true
+      warning_message: "SOCKS5 proxy on 10808 not reachable"
+
+# Tool relationships
+relationships:
+  produces_for:
+    - tool: ffmpeg
+      description: Downloaded files can be processed by ffmpeg
+    - tool: whisper
+      description: Downloaded audio can be transcribed by whisper
+  
+  consumes_from:
+    - tool: ffmpeg
+      description: Can download videos that were prepared by ffmpeg
+  
+  alternatives:
+    - tool: ffmpeg
+      mode: download
+      condition: "When yt-dlp is not available"
+
+# Retry configuration overrides
+retry:
+  transient_errors:
+    - "HTTP Error 429"
+    - "Rate limit"
+    - "Connection reset"
+    - "Timeout"
+    - "Sign in to confirm your age"
+    - "SABR streaming"
+    - "Incomplete YouTube API"
+  permanent_errors:
+    - "Video unavailable"
+    - "Private video"
+    - "Age restricted"
+    - "Members-only"
+
+# Known warnings for automatic detection
+known_warnings:
+  - pattern: "No supported JavaScript runtime"
+    severity: warning
+    action: "install deno for better format support"
+    impact: "Some formats may be unavailable"
+  - pattern: "SABR streaming"
+    severity: info
+    action: "some formats unavailable, using alternatives"
+    impact: "YouTube forcing SABR streaming"
+  - pattern: "No JS runtime"
+    severity: warning
+    action: "install deno/node"
+    impact: "Format extraction limited"
+
+# Confidence degradation rules
+confidence:
+  rules:
+    - condition: "SABR streaming"
+      action: reduce
+      factor: 0.7
+      reason: "YouTube API changes may affect format availability"
+    - condition: "No JS runtime"
+      action: reduce
+      factor: 0.8
+      reason: "Some formats unavailable without deno/node"
+    - condition: "proxy_error"
+      action: reduce
+      factor: 0.5
+      reason: "Proxy connectivity issues"
+
+# Installation configuration
+install:
+  winget:
+    id: "yt-dlp.yt-dlp"
+    alternatives: []
+  pip:
+    package: "yt-dlp"
+  github:
+    repo: "yt-dlp/yt-dlp"
+  methods: ["winget", "pip", "github"]
+  health_check_command: "yt-dlp --version"
+  version_command: "yt-dlp --version"
+  dependencies:
+    - tool: "ffmpeg"
+      winget_id: "Gyan.FFmpeg"
+    - tool: "deno"
+      winget_id: "DenoLand.Deno"
+  notes: |
+    yt-dlp can be installed via winget (recommended), pip, or as standalone executable.
+    Requires ffmpeg for audio/video processing.
+    Deno or Node.js recommended for full YouTube format support.
+
+# UI hints
+ui:
+  icon: "download"
+  color: "#FF0000"
+  input_form:
+    url:
+      type: url
+      placeholder: "https://youtube.com/watch?v=..."
+      label: "Video URL"
+    format:
+      type: select
+      options:
+        - value: "bestvideo+bestaudio/best"
+          label: "Best quality"
+        - value: "best"
+          label: "Best combined"
+        - value: "mp4"
+          label: "MP4"
+        - value: "webm"
+          label: "WebM"

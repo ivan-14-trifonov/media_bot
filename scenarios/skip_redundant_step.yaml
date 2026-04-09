@@ -1,0 +1,61 @@
+# Scenario: Skip Redundant Step
+# Tests shortcut detection when a step is unnecessary
+
+schema_version: "0.2.0"
+name: skip_redundant_step
+description: Test that unnecessary steps are skipped when shortcuts are detected
+
+trigger:
+  goal_patterns:
+    - "download.*subtitles"
+    - "get.*captions"
+    - "extract.*text"
+  input_conditions:
+    - platform_has_captions: true
+
+config:
+  detect_shortcuts: true
+  prefer_existing_captions: true
+  skip_whisper_when:
+    - source_has_subtitles: true
+    - quality_acceptable: true
+
+steps:
+  - name: Check for existing subtitles
+    tool: yt-dlp
+    mode: probe
+    input:
+      url: "https://youtube.com/watch?v=dQw4w9WgXcQ"
+    expected_output:
+      has_auto_captions: true
+      has_manual_captions: false
+      caption_languages: ["en", "es", "fr"]
+
+  - name: Download subtitles (skip whisper)
+    tool: yt-dlp
+    mode: subtitles
+    input:
+      url: "$prev.url"
+      lang: "en"
+    skip_tools:
+      - whisper
+    reason: "YouTube video has auto-generated English captions"
+
+  - name: Verify skip decision
+    check:
+      - whisper_not_called: true
+      - subtitles_downloaded: true
+      - time_saved > 0
+
+expected_outcome:
+  success: Subtitles downloaded without whisper transcription
+  time_saved: "Approximately 80-95% compared to full transcription"
+  quality: "Auto-captions may have lower accuracy than whisper"
+
+shortcut_rules:
+  - if: "source == youtube AND has_captions == true"
+    then: "skip whisper, use yt-dlp --write-subs"
+  - if: "source == local_file AND duration > 600"
+    then: "warn about long transcription time"
+  - if: "language == detected AND quality == high"
+    then: "prefer existing captions"

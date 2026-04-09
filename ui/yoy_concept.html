@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¡Yoy! — Interface for Everything</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Archivo+Black&family=Archivo:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #0e0e0f;
+  --bg2: #141416;
+  --bg3: #1a1a1d;
+  --bg4: #222226;
+  --border: #2a2a2f;
+  --border2: #333338;
+  --text: #e8e8ec;
+  --text2: #8888a0;
+  --text3: #55556a;
+  --accent: #ff3c00;
+  --accent2: #ff6b35;
+  --green: #00e676;
+  --yellow: #ffd600;
+  --blue: #448aff;
+  --panel-w: 280px;
+  --right-w: 300px;
+  --header-h: 42px;
+  --status-h: 26px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Archivo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ═══════════════ HEADER ═══════════════ */
+.header {
+  height: var(--header-h);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 20px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.logo span { color: var(--text); }
+
+.menu-items {
+  display: flex;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.menu-item {
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.menu-item:hover { background: var(--bg4); color: var(--text); }
+
+.header-spacer { flex: 1; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-run {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-run:hover { background: var(--accent2); transform: translateY(-1px); }
+
+.btn-icon {
+  width: 28px; height: 28px;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  color: var(--text2);
+}
+
+.btn-icon:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+.btn-icon.active { color: var(--accent); border-color: var(--accent); }
+
+.user-avatar {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), #ff8c00);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ═══════════════ LAYOUT ═══════════════ */
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ═══════════════ LEFT SIDEBAR ═══════════════ */
+.sidebar-icons {
+  width: 44px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text3);
+  transition: all 0.15s;
+  position: relative;
+}
+
+.sidebar-icon:hover { color: var(--text2); background: var(--bg4); }
+.sidebar-icon.active { color: var(--accent); background: rgba(255,60,0,0.1); }
+
+.sidebar-icon .badge {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  border: 2px solid var(--bg2);
+}
+
+.sidebar-spacer { flex: 1; }
+
+/* ═══════════════ LEFT PANEL ═══════════════ */
+.left-panel {
+  width: var(--panel-w);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 10px 14px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-header-action {
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text3);
+  transition: color 0.15s;
+}
+
+.panel-header-action:hover { color: var(--text); }
+
+.panel-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-search input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.panel-search input:focus { border-color: var(--accent); }
+.panel-search input::placeholder { color: var(--text3); }
+
+.panel-content { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+.panel-section {
+  margin-bottom: 4px;
+}
+
+.panel-section-title {
+  padding: 4px 14px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text3);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.panel-section-title::before {
+  content: '▶';
+  font-size: 8px;
+  transition: transform 0.15s;
+}
+
+.panel-section-title.open::before { transform: rotate(90deg); }
+
+.tool-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 24px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-radius: 0;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.tool-item:hover { background: var(--bg4); color: var(--text); }
+.tool-item.active { background: rgba(255,60,0,0.08); color: var(--accent2); }
+
+.tool-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-green { background: var(--green); }
+.dot-yellow { background: var(--yellow); }
+.dot-blue { background: var(--blue); }
+.dot-red { background: var(--accent); }
+.dot-gray { background: var(--text3); }
+
+/* ═══════════════ MAIN CANVAS ═══════════════ */
+.canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+}
+
+.canvas-toolbar {
+  height: 36px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.canvas-tab {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.canvas-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.canvas-tab:hover { color: var(--text); }
+
+.canvas-tab-spacer { flex: 1; }
+
+.canvas-view-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.view-btn {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text3);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+
+.view-btn:hover { color: var(--text2); background: var(--bg4); }
+.view-btn.active { color: var(--accent); background: rgba(255,60,0,0.1); }
+
+/* Pipeline Canvas */
+.pipeline-area {
+  flex: 1;
+  overflow: auto;
+  padding: 40px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  position: relative;
+}
+
+/* Grid background */
+.pipeline-area::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+/* Connection line */
+.connector {
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--border2), var(--accent));
+  position: relative;
+  flex-shrink: 0;
+}
+
+.connector::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+.connector.inactive {
+  background: var(--border);
+}
+
+.connector.inactive::after {
+  border-color: var(--border2);
+}
+
+/* Pipeline Block */
+.block {
+  width: 200px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.block:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.block.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 32px rgba(255,60,0,0.15);
+}
+
+.block.completed { border-color: var(--green); }
+.block.running { border-color: var(--yellow); animation: pulse 2s infinite; }
+.block.failed { border-color: #ff1744; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,214,0,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(255,214,0,0); }
+}
+
+.block-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-icon {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.icon-red { background: rgba(255,60,0,0.15); }
+.icon-blue { background: rgba(68,138,255,0.15); }
+.icon-green { background: rgba(0,230,118,0.15); }
+.icon-yellow { background: rgba(255,214,0,0.15); }
+.icon-purple { background: rgba(180,0,255,0.15); }
+
+.block-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.block-subtitle {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.block-status {
+  margin-left: auto;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-done { background: var(--green); }
+.status-run { background: var(--yellow); animation: blink 1s infinite; }
+.status-fail { background: #ff1744; }
+.status-wait { background: var(--text3); }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.block-body {
+  padding: 10px 12px;
+}
+
+.block-param {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+
+.param-key { color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+.param-val {
+  color: var(--text2);
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.block-footer {
+  padding: 6px 12px;
+  background: var(--bg3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.block-output-tag {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  color: var(--text3);
+}
+
+/* Add block button */
+.add-block {
+  width: 44px; height: 44px;
+  border: 2px dashed var(--border2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text3);
+  font-size: 20px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 40px;
+}
+
+.add-block:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255,60,0,0.05);
+}
+
+/* Goal input */
+.goal-bar {
+  padding: 14px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.goal-input {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'Archivo', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.goal-input:focus { border-color: var(--accent); }
+.goal-input::placeholder { color: var(--text3); }
+
+.goal-build {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.goal-build:hover { background: var(--accent2); }
+
+/* ═══════════════ RIGHT PANEL ═══════════════ */
+.right-panel {
+  width: var(--right-w);
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.right-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.right-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.right-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.right-tab:hover { color: var(--text2); }
+
+.right-content { flex: 1; overflow-y: auto; padding: 14px; }
+
+.prop-group { margin-bottom: 18px; }
+
+.prop-group-title {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.prop-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.prop-label {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.3px;
+}
+
+.prop-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.prop-input:focus { border-color: var(--accent); }
+
+.prop-select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  cursor: pointer;
+}
+
+.prop-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle {
+  width: 32px; height: 16px;
+  background: var(--bg4);
+  border-radius: 8px;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  transition: background 0.2s;
+}
+
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px; left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(16px); }
+
+/* Output preview */
+.output-preview {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.output-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.output-file:last-child { border-bottom: none; }
+
+.output-file-icon { font-size: 14px; }
+.output-file-name { color: var(--text2); flex: 1; }
+.output-file-size { color: var(--text3); font-size: 10px; }
+
+/* Confidence bar */
+.confidence-bar {
+  height: 4px;
+  background: var(--bg4);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+
+.conf-high { background: var(--green); }
+.conf-med { background: var(--yellow); }
+.conf-low { background: var(--accent); }
+
+/* ═══════════════ STATUS BAR ═══════════════ */
+.statusbar {
+  height: var(--status-h);
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 16px;
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.9);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.status-item:hover { opacity: 0.8; }
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+}
+
+.status-dot.live { background: #fff; animation: blink 1s infinite; }
+
+.status-spacer { flex: 1; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* Tooltip */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 999;
+  font-family: 'Archivo', sans-serif;
+  color: var(--text);
+}
+
+[data-tip]:hover::after { opacity: 1; }
+
+/* Animations */
+.block { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.block:nth-child(1) { animation-delay: 0.05s; }
+.block:nth-child(3) { animation-delay: 0.1s; }
+.block:nth-child(5) { animation-delay: 0.15s; }
+.block:nth-child(7) { animation-delay: 0.2s; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">¡<span>Yoy</span>!</div>
+  <div class="menu-items">
+    <div class="menu-item">Файл</div>
+    <div class="menu-item">Правка</div>
+    <div class="menu-item">Вид</div>
+    <div class="menu-item">Инструменты</div>
+    <div class="menu-item">Помощь</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-actions">
+    <div class="btn-icon" title="Пошаговый режим">⏯</div>
+    <div class="btn-icon active" title="Прокси активен">🔒</div>
+    <div class="btn-icon" title="Настройки">⚙</div>
+    <button class="btn-run" onclick="runPipeline()">▶ RUN</button>
+    <div class="user-avatar">A</div>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- SIDEBAR ICONS -->
+  <div class="sidebar-icons">
+    <div class="sidebar-icon active" data-tip="Инструменты">⬡</div>
+    <div class="sidebar-icon" data-tip="История">⏱</div>
+    <div class="sidebar-icon" data-tip="Файлы" style="position:relative">
+      📁
+      <div class="badge"></div>
+    </div>
+    <div class="sidebar-icon" data-tip="Поиск">⌕</div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-icon" data-tip="Каталог">🌐</div>
+    <div class="sidebar-icon" data-tip="Профиль">◉</div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="panel-header">
+      Инструменты
+      <div class="panel-header-action" title="Добавить">+</div>
+    </div>
+    <div class="panel-search">
+      <input type="text" placeholder="поиск...">
+    </div>
+    <div class="panel-content">
+
+      <div class="panel-section">
+        <div class="panel-section-title open">Медиа</div>
+        <div class="tool-item active" onclick="selectTool('yt-dlp')">
+          <div class="tool-dot dot-red"></div>yt-dlp
+        </div>
+        <div class="tool-item" onclick="selectTool('ffmpeg')">
+          <div class="tool-dot dot-blue"></div>ffmpeg
+        </div>
+        <div class="tool-item" onclick="selectTool('whisper')">
+          <div class="tool-dot dot-green"></div>whisper
+        </div>
+        <div class="tool-item" onclick="selectTool('imagemagick')">
+          <div class="tool-dot dot-yellow"></div>imagemagick
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title open">ИИ / LLM</div>
+        <div class="tool-item" onclick="selectTool('ollama')">
+          <div class="tool-dot dot-green"></div>ollama
+        </div>
+        <div class="tool-item" onclick="selectTool('litellm')">
+          <div class="tool-dot dot-blue"></div>litellm
+        </div>
+        <div class="tool-item" onclick="selectTool('whisper-cpp')">
+          <div class="tool-dot dot-yellow"></div>whisper.cpp
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Данные</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Файлы</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Сеть</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN CANVAS -->
+  <div class="canvas">
+
+    <!-- Toolbar -->
+    <div class="canvas-toolbar">
+      <div class="canvas-tab active">Pipeline #1</div>
+      <div class="canvas-tab">Pipeline #2</div>
+      <div class="canvas-tab">+</div>
+      <div class="canvas-tab-spacer"></div>
+      <div class="canvas-view-btns">
+        <div class="view-btn active">VISUAL</div>
+        <div class="view-btn">YAML</div>
+        <div class="view-btn">CLI</div>
+      </div>
+    </div>
+
+    <!-- Goal bar -->
+    <div class="goal-bar">
+      <input class="goal-input" type="text"
+        placeholder="Опиши задачу... например: скачай видео с YouTube и транскрибируй"
+        value="Скачай видео с YouTube и транскрибируй">
+      <button class="goal-build" onclick="buildPipeline()">⚡ СОБРАТЬ</button>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="pipeline-area">
+      <div class="pipeline-row">
+
+        <!-- Block 1: yt-dlp -->
+        <div class="block completed active" onclick="selectBlock('yt-dlp')">
+          <div class="block-header">
+            <div class="block-icon icon-red">⬇</div>
+            <div>
+              <div class="block-title">yt-dlp</div>
+              <div class="block-subtitle">probe</div>
+            </div>
+            <div class="block-status status-done"></div>
+          </div>
+          <div class="block-body">
+            <div class="block-param">
+              <span class="param-key">url</span>
+              <span class="param-val">youtube.com/…</span>
+            </div>
+            <div class="block-param">
+              <span class="param-key">mode</span>
+              <span class="param-val">probe</span>
+            </div>
+          </div>
+          <div class="block-footer">
+            <span>0.4s</span>
+            <span class="block-output-tag">options_manifest</span>
+          </div>
+        </div>
+
+        <div class="connector"></div>
+
+        <!-- Block 2: user select -->
+        <div class="block completed" onclick="selectBlock('select')">
+          <div class="block-header">
+            <div class="block-icon icon-yellow">◉</div>
+            <div>
+              <div class="block-title">выбор</div>
+              <div class="block-subtitle">user_input</div>
+            </div>
+            <div class="block-status status-done"></div>
+          </div>
+          <div class="block-body">
+            <div class="block-param">
+              <span class="param-key">format</span>
+              <span class="param-val">720p/mp4</span>
+            </div>
+            <div class="block-param">
+              <span class="param-key">subs</span>
+              <span class="param-val">en/srt ✓</span>
+            </div>
+          </div>
+          <div class="block-footer">
+            <span>user</span>
+            <span class="block-output-tag">selection</span>
+          </div>
+        </div>
+
+        <div class="connector"></div>
+
+        <!-- Block 3: yt-dlp download -->
+        <div class="block running" onclick="selectBlock('download')">
+          <div class="block-header">
+            <div class="block-icon icon-red">⬇</div>
+            <div>
+              <div class="block-title">yt-dlp</div>
+              <div class="block-subtitle">download</div>
+            </div>
+            <div class="block-status status-run"></div>
+          </div>
+          <div class="block-body">
+            <div class="block-param">
+              <span class="param-key">format</span>
+              <span class="param-val">720p</span>
+            </div>
+            <div class="block-param">
+              <span class="param-key">proxy</span>
+              <span class="param-val">socks5://…</span>
+            </div>
+          </div>
+          <div class="block-footer">
+            <span>47%…</span>
+            <span class="block-output-tag">media.video</span>
+          </div>
+        </div>
+
+        <div class="connector inactive"></div>
+
+        <!-- Block 4: whisper -->
+        <div class="block" onclick="selectBlock('whisper')">
+          <div class="block-header">
+            <div class="block-icon icon-green">🎙</div>
+            <div>
+              <div class="block-title">whisper</div>
+              <div class="block-subtitle">transcribe</div>
+            </div>
+            <div class="block-status status-wait"></div>
+          </div>
+          <div class="block-body">
+            <div class="block-param">
+              <span class="param-key">model</span>
+              <span class="param-val">base</span>
+            </div>
+            <div class="block-param">
+              <span class="param-key">lang</span>
+              <span class="param-val">auto</span>
+            </div>
+          </div>
+          <div class="block-footer">
+            <span>ожидание</span>
+            <span class="block-output-tag">text.srt</span>
+          </div>
+        </div>
+
+        <!-- Add block -->
+        <div class="add-block" title="Добавить шаг">+</div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="right-panel-tabs">
+      <div class="right-tab active">Свойства</div>
+      <div class="right-tab">Вывод</div>
+      <div class="right-tab">Лог</div>
+    </div>
+    <div class="right-content">
+
+      <!-- Block info -->
+      <div class="prop-group">
+        <div class="prop-group-title">yt-dlp / download</div>
+        <div class="prop-row">
+          <div class="prop-label">url</div>
+          <input class="prop-input" value="https://youtube.com/watch?v=dQw4w9W">
+        </div>
+        <div class="prop-row">
+          <div class="prop-label">format</div>
+          <select class="prop-select">
+            <option>720p/mp4</option>
+            <option>1080p/mp4</option>
+            <option>480p/mp4</option>
+            <option>audio only</option>
+          </select>
+        </div>
+        <div class="prop-row">
+          <div class="prop-label">proxy</div>
+          <input class="prop-input" value="socks5://127.0.0.1:10808">
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-title">Режим выполнения</div>
+        <div class="prop-row">
+          <div class="prop-toggle">
+            <span style="font-size:11px;color:var(--text2)">Пошаговый</span>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-toggle">
+            <span style="font-size:11px;color:var(--text2)">Авто-retry</span>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-toggle">
+            <span style="font-size:11px;color:var(--text2)">Телеметрия</span>
+            <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-title">Манифест</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;">
+          <span style="color:var(--text3);font-family:'JetBrains Mono',monospace">confidence</span>
+          <span style="color:var(--green);font-family:'JetBrains Mono',monospace">0.85</span>
+        </div>
+        <div class="confidence-bar">
+          <div class="confidence-fill conf-high" style="width:85%"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px;font-family:'JetBrains Mono',monospace">
+          v2024.11.18 · tested: ubuntu, win11
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-title">Предупреждения</div>
+        <div style="font-size:10px;color:var(--yellow);font-family:'JetBrains Mono',monospace;line-height:1.6">
+          ⚠ No JS runtime<br>
+          ⚠ SABR streaming
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-item">
+    <div class="status-dot live"></div>
+    job: running
+  </div>
+  <div class="status-item">🔒 socks5:10808</div>
+  <div class="status-item">⚡ qwen3-max</div>
+  <div class="status-item">3 шага</div>
+  <div class="status-spacer"></div>
+  <div class="status-item">v0.2.0</div>
+  <div class="status-item">Windows · Python 3.10</div>
+  <div class="status-item">¡Yoy!</div>
+</div>
+
+<script>
+function selectBlock(name) {
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function selectTool(name) {
+  document.querySelectorAll('.tool-item').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function buildPipeline() {
+  const btn = document.querySelector('.goal-build');
+  btn.textContent = '⏳ QWEN...';
+  btn.style.background = 'var(--bg4)';
+  btn.style.color = 'var(--text2)';
+  setTimeout(() => {
+    btn.textContent = '✓ ГОТОВО';
+    btn.style.background = 'var(--green)';
+    btn.style.color = '#000';
+    setTimeout(() => {
+      btn.textContent = '⚡ СОБРАТЬ';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  }, 1500);
+}
+
+function runPipeline() {
+  const btn = document.querySelector('.btn-run');
+  btn.textContent = '⏹ STOP';
+  btn.style.background = '#ff1744';
+  setTimeout(() => {
+    btn.innerHTML = '▶ RUN';
+    btn.style.background = '';
+  }, 3000);
+}
+
+// Tab switching
+document.querySelectorAll('.right-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.right-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.canvas-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.canvas-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.sidebar-icon').forEach(icon => {
+  icon.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-icon').forEach(i => i.classList.remove('active'));
+    icon.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.panel-section-title').forEach(title => {
+  title.addEventListener('click', () => {
+    title.classList.toggle('open');
+    const section = title.parentElement;
+    const items = section.querySelectorAll('.tool-item');
+    items.forEach(item => {
+      item.style.display = title.classList.contains('open') ? 'flex' : 'none';
+    });
+  });
+});
+</script>
+</body>
+</html>

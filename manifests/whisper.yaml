@@ -1,0 +1,232 @@
+# Whisper Manifest
+# Schema Version: 0.2.0
+schema_version: "0.2.0"
+
+tool: whisper
+description: Speech-to-text transcription using OpenAI Whisper
+
+version:
+  min: "20230314"
+  recommended: "20231117"
+
+# Input parameters
+inputs:
+  audio_file:
+    type: string
+    required: true
+    description: Audio file to transcribe
+    validation:
+      file_exists: true
+      extensions: [mp3, wav, m4a, flac, ogg, webm, mp4]
+  
+  model:
+    type: string
+    required: false
+    default: "base"
+    description: Whisper model size
+    enum: [tiny, base, small, medium, large]
+  
+  language:
+    type: string
+    required: false
+    default: null
+    description: Language code (auto-detect if null)
+  
+  task:
+    type: string
+    required: false
+    default: "transcribe"
+    description: Task type
+    enum: [transcribe, translate]
+  
+  output_format:
+    type: string
+    required: false
+    default: "srt"
+    description: Output format
+    enum: [srt, vtt, txt, json]
+
+# Output definitions
+outputs:
+  transcript_file:
+    file:
+      required: true
+      param: transcript_file
+      extension: [srt, vtt, txt, json]
+    description: Transcript file
+  
+  transcript_text:
+    param:
+      name: transcript_text
+      type: string
+      required: false
+    description: Transcript as plain text
+  
+  language_detected:
+    param:
+      name: language_detected
+      type: string
+      required: false
+    description: Detected language code
+
+# Execution modes
+modes:
+  transcribe:
+    description: Transcribe audio to text
+    command: "whisper '{audio_file}' --model '{model}' --output_format '{output_format}' --output_dir '{job_dir}/{step_id}'{language_param}"
+    output:
+      transcript_file:
+        path: "{job_dir}/{step_id}/transcript.{output_format}"
+        file: true
+      transcript_text:
+        parse:
+          pattern: ".*"
+          source: stdout
+    success_codes: [0]
+    timeout: 3600
+
+  translate:
+    description: Translate audio to English text
+    command: "whisper '{audio_file}' --model '{model}' --task translate --output_format '{output_format}' --output_dir '{job_dir}/{step_id}'"
+    output:
+      transcript_file:
+        path: "{job_dir}/{step_id}/translation.{output_format}"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+  detect_language:
+    description: Detect audio language only
+    command: "whisper '{audio_file}' --model '{model}' --task transcribe --output_format txt --output_dir '{job_dir}/{step_id}'"
+    output:
+      language_detected:
+        parse:
+          pattern: "Detected language:\\s*(\\w+)"
+          source: stdout
+    success_codes: [0]
+    timeout: 600
+
+  transcribe_json:
+    description: Transcribe with detailed JSON output
+    command: "whisper '{audio_file}' --model '{model}' --output_format json --output_dir '{job_dir}/{step_id}'"
+    output:
+      transcript_file:
+        path: "{job_dir}/{step_id}/transcript.json"
+        file: true
+    success_codes: [0]
+    timeout: 3600
+
+# Health check configuration
+health_check:
+  command: "whisper --version"
+  expected_output:
+    pattern: "whisper"
+  timeout: 10
+
+# Tool relationships
+relationships:
+  produces_for:
+    - tool: ffmpeg
+      description: Subtitles can be burned into video
+  
+  consumes_from:
+    - tool: yt-dlp
+      description: Can transcribe downloaded videos
+    - tool: ffmpeg
+      description: Can transcribe extracted audio
+  
+  alternatives: []
+
+# Retry configuration
+retry:
+  transient_errors:
+    - "CUDA out of memory"
+    - "Connection error"
+  permanent_errors:
+    - "No such file"
+    - "Unsupported audio format"
+    - "Model not found"
+
+# Model specifications
+models:
+  tiny:
+    ram_gb: 1
+    speed: "fastest"
+    accuracy: "lowest"
+  base:
+    ram_gb: 1
+    speed: "fast"
+    accuracy: "low"
+  small:
+    ram_gb: 2
+    speed: "medium"
+    accuracy: "medium"
+  medium:
+    ram_gb: 5
+    speed: "slow"
+    accuracy: "high"
+  large:
+    ram_gb: 10
+    speed: "slowest"
+    accuracy: "highest"
+
+# Installation configuration
+install:
+  winget: null
+  pip:
+    package: "openai-whisper"
+  github:
+    repo: "openai/whisper"
+  methods: ["pip", "pipx", "github"]
+  health_check_command: "whisper --version"
+  version_command: "whisper --version"
+  requirements:
+    python_min: "3.8"
+    cuda_recommended: true
+  notes: |
+    Whisper is a Python package requiring PyTorch.
+    CUDA GPU acceleration is recommended for faster transcription.
+    Install via pip: pip install openai-whisper
+    For better performance: pip install openai-whisper[cuda]
+
+# UI hints
+ui:
+  icon: "microphone"
+  color: "#10B981"
+  input_form:
+    audio_file:
+      type: file
+      accept: "audio/*,video/*"
+      label: "Audio File"
+    model:
+      type: select
+      options:
+        - value: "tiny"
+          label: "Tiny (fastest, least accurate)"
+        - value: "base"
+          label: "Base (fast)"
+        - value: "small"
+          label: "Small (balanced)"
+        - value: "medium"
+          label: "Medium (accurate)"
+        - value: "large"
+          label: "Large (most accurate)"
+    language:
+      type: select
+      options:
+        - value: ""
+          label: "Auto-detect"
+        - value: "en"
+          label: "English"
+        - value: "ru"
+          label: "Russian"
+        - value: "es"
+          label: "Spanish"
+        - value: "fr"
+          label: "French"
+        - value: "de"
+          label: "German"
+        - value: "zh"
+          label: "Chinese"
+        - value: "ja"
+          label: "Japanese"

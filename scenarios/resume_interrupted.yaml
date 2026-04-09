@@ -1,0 +1,90 @@
+# Scenario: Resume Interrupted Job
+# Tests job resumption after interruption
+
+schema_version: "0.2.0"
+name: resume_interrupted
+description: Test that jobs can be resumed from the last successful step after interruption
+
+trigger:
+  job_status:
+    - running
+    - paused
+  interruption_types:
+    - sigint
+    - sigterm
+    - system_crash
+    - timeout
+
+config:
+  save_state_after_step: true
+  resume_from_last_successful: true
+  reset_running_steps_to_pending: true
+
+pipeline:
+  - step_1:
+      tool: yt-dlp
+      mode: download
+      expected_duration: 60
+      simulate_interrupt: false
+  
+  - step_2:
+      tool: ffmpeg
+      mode: convert
+      expected_duration: 120
+      simulate_interrupt: true  # Interrupt during this step
+  
+  - step_3:
+      tool: whisper
+      mode: transcribe
+      expected_duration: 300
+      simulate_interrupt: false
+
+test_sequence:
+  - action: start_job
+    expected: job starts, step_1 begins
+  
+  - action: wait_for_step_complete
+    step: step_1
+    expected: step_1 completed, step_2 begins
+  
+  - action: simulate_interrupt
+    type: sigint
+    expected: job paused, state saved
+  
+  - action: resume_job
+    expected: job resumes from step_2 (or step_3 if step_2 completed)
+  
+  - action: wait_for_completion
+    expected: all remaining steps complete
+
+expected_outcome:
+  success: Job completes after resume
+  step_1: completed (not re-run)
+  step_2: either completed or re-run from start
+  step_3: completed
+  total_time: "Less than running full pipeline twice"
+
+job_card_state:
+  before_interrupt:
+    status: running
+    step_1: completed
+    step_2: running
+  
+  after_interrupt:
+    status: paused
+    step_1: completed
+    step_2: pending  # Reset from running
+  
+  after_resume:
+    status: completed
+    step_1: completed
+    step_2: completed
+    step_3: completed
+
+recovery_rules:
+  - if: "step_status == running"
+    then: "reset to pending"
+  - if: "step_status == completed"
+    then: "skip, use cached outputs"
+  - if: "step_status == failed AND retryable"
+    then: "retry with backoff"
